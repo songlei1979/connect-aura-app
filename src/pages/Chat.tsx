@@ -45,11 +45,23 @@ const Chat = () => {
         setSelectedRoomId(fetchedRooms[0].id);
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load chat rooms',
-        variant: 'destructive',
-      });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load chat rooms';
+      
+      // If unauthorized, redirect to login
+      if (errorMessage.includes('Unauthorized') || errorMessage.includes('login')) {
+        navigate('/');
+        toast({
+          title: 'Session expired',
+          description: 'Please login again.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsLoadingRooms(false);
     }

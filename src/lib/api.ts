@@ -63,30 +63,49 @@ class ApiClient {
     try {
       const response = await fetch(`${API_BASE_URL}/login/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+        credentials: 'omit',
         body: JSON.stringify(validatedData),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.detail || 'Login failed. Please check your credentials.');
+        let errorMessage = 'Login failed. Please check your credentials.';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorData.non_field_errors?.[0] || errorMessage;
+        } catch {
+          // If we can't parse the error, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
       
-      if (!data.token) {
-        throw new Error('Invalid response from server');
+      // Django REST Framework returns token in different formats
+      const token = data.token || data.key || data.auth_token;
+      
+      if (!token) {
+        console.error('Login response:', data);
+        throw new Error('Invalid response from server - no token received');
       }
 
-      this.token = data.token;
-      localStorage.setItem('auth_token', data.token);
-      return data;
+      this.token = token;
+      localStorage.setItem('auth_token', token);
+      
+      return {
+        token,
+        user: data.user || { id: data.user_id, username: credentials.username }
+      };
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw new Error(error.errors[0].message);
       }
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Unable to connect to server. Please check your internet connection or try again later.');
+        throw new Error('Unable to connect to server. Please check if the backend is running and CORS is enabled.');
       }
       throw error;
     }
@@ -97,6 +116,8 @@ class ApiClient {
       const response = await fetch(`${API_BASE_URL}/logout/`, {
         method: 'POST',
         headers: this.getHeaders(),
+        mode: 'cors',
+        credentials: 'omit',
       });
 
       if (!response.ok) {
@@ -115,17 +136,24 @@ class ApiClient {
   async getChatRooms(): Promise<ChatRoom[]> {
     try {
       const response = await fetch(`${API_BASE_URL}/chat_rooms/`, {
+        method: 'GET',
         headers: this.getHeaders(),
+        mode: 'cors',
+        credentials: 'omit',
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
+        if (response.status === 401 || response.status === 403) {
+          this.token = null;
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('username');
           throw new Error('Unauthorized. Please login again.');
         }
         throw new Error('Failed to fetch chat rooms');
       }
 
-      return response.json();
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new Error('Unable to connect to server');
@@ -142,12 +170,17 @@ class ApiClient {
       const response = await fetch(`${API_BASE_URL}/chat_rooms/`, {
         method: 'POST',
         headers: this.getHeaders(),
+        mode: 'cors',
+        credentials: 'omit',
         body: JSON.stringify({ name: validatedName }),
       });
 
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Unauthorized. Please login again.');
+        }
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to create chat room');
+        throw new Error(errorData.message || errorData.detail || 'Failed to create chat room');
       }
 
       return response.json();
@@ -166,10 +199,15 @@ class ApiClient {
     const response = await fetch(`${API_BASE_URL}/chat_rooms/${id}/`, {
       method: 'PUT',
       headers: this.getHeaders(),
+      mode: 'cors',
+      credentials: 'omit',
       body: JSON.stringify({ name: validatedName }),
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Unauthorized. Please login again.');
+      }
       throw new Error('Failed to update chat room');
     }
 
@@ -180,19 +218,30 @@ class ApiClient {
     const response = await fetch(`${API_BASE_URL}/chat_rooms/${id}/`, {
       method: 'DELETE',
       headers: this.getHeaders(),
+      mode: 'cors',
+      credentials: 'omit',
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Unauthorized. Please login again.');
+      }
       throw new Error('Failed to delete chat room');
     }
   }
 
   async getChatRoomDetail(id: number): Promise<ChatRoom> {
     const response = await fetch(`${API_BASE_URL}/chat_rooms/${id}`, {
+      method: 'GET',
       headers: this.getHeaders(),
+      mode: 'cors',
+      credentials: 'omit',
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Unauthorized. Please login again.');
+      }
       throw new Error('Failed to fetch chat room detail');
     }
 
