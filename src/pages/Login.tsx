@@ -18,6 +18,16 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!username.trim() || !password.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter both username and password.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -28,9 +38,10 @@ const Login = () => {
       });
       navigate('/chat');
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Invalid username or password. Please try again.';
       toast({
         title: 'Login failed',
-        description: 'Invalid username or password. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
