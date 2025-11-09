@@ -17,7 +17,7 @@ ARG BUILD_DIR=build
 ENV BUILD_DIR=${BUILD_DIR}
 
 # Copy the build output from the builder
-COPY --from=build /app/${BUILD_DIR} /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 
 # Optional SPA routing (uncomment if you use React Router)
 # COPY ./nginx.conf /etc/nginx/conf.d/default.conf
