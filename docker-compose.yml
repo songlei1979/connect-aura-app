@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  react:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # You can pass build args if you prefer:
+      # args:
+      #   REACT_APP_API_BASE: "http://54.252.180.111:8000/api"
+    image: my-react-app:latest
+    container_name: react_app
+    ports:
+      - "80:80"
+    # If you keep env vars at runtime for other things (not typical for CRA builds):
+    # environment:
+    #   - NODE_ENV=production
+    # For local dev mounting, comment out in prod:
+    # volumes:
+    #   - .:/app
+    restart: unless-stopped
